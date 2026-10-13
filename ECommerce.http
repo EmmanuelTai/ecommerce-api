@@ -1,0 +1,5 @@
+# Requests for trying the API. Filled in task by task; complete list in T12.
+@baseUrl = http://localhost:5152
+
+### OpenAPI document
+GET {{baseUrl}}/openapi/v1.json

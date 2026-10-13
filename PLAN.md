@@ -76,11 +76,11 @@ Any other change → 409 Conflict.
 ## Tasks (one commit each)
 
 ### T1 · Scaffold
-- [ ] Solution + 3 projects, references Api → Core and Infrastructure, Infrastructure → Core.
-- [ ] `.gitignore`, `.editorconfig`, nullable on.
-- [ ] `Program.cs`: controllers, OpenAPI + **Scalar** UI at `/scalar`.
-- [ ] Config via the options pattern (`JwtSettings`, `SmtpSettings`, `PaystackSettings`). **Secrets in user-secrets**, never in `appsettings.json`.
-- [ ] `docker-compose.yml` with SQL Server and Mailpit.
+- [x] Solution + 3 projects, references Api → Core and Infrastructure, Infrastructure → Core.
+- [x] `.gitignore`, `.editorconfig`, nullable on.
+- [x] `Program.cs`: controllers, OpenAPI + **Scalar** UI at `/scalar`.
+- [x] Config via the options pattern (`JwtSettings`, `SmtpSettings`, `PaystackSettings`). **Secrets in user-secrets**, never in `appsettings.json`.
+- [x] `docker-compose.yml` with SQL Server and Mailpit.
 - **Done when:** the app runs and `/scalar` loads.
 
 ### T2 · Entities, DbContext, migration, seed
