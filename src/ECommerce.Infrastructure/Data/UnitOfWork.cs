@@ -41,6 +41,13 @@ public class UnitOfWork(AppDbContext db) : IUnitOfWork
         {
             throw new ConflictException("A record with the same unique value already exists.");
         }
+        // EF expected to update or delete a row and found it already gone or changed, e.g. the same customer
+        // placing an order twice at once: the second request's cart lines were already deleted by the first.
+        // It's a race lost to another request, so 409 ("try again"), not a 500.
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException("This data was changed by another request. Please try again.");
+        }
     }
 
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)

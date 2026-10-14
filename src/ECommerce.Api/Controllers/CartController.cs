@@ -40,6 +40,7 @@ public class CartController(ICartService cartService) : ControllerBase
     [ProducesResponseType<ApiResponse<CartDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiErrorResponse>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ApiErrorResponse>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiErrorResponse>(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UpdateItem(int itemId, UpdateCartItemRequest request, CancellationToken cancellationToken)
     {
         var result = await cartService.UpdateItemAsync(itemId, request, cancellationToken);

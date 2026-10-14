@@ -9,6 +9,7 @@ The roadmap is in `PLAN.md`. This is a portfolio project: the owner must be able
 - After a task: summarise what changed, point out the 2–3 things worth understanding for interviews, tick the box in PLAN.md, and suggest a commit message (`T5: auth and roles`).
 - **Keep it simple.** No extra libraries, patterns or abstractions beyond what PLAN.md lists. No AutoMapper, MediatR, CQRS or FluentValidation. If something seems missing, ask; don't add it.
 - No automated test projects. Verify with Scalar (`/scalar`) and `ECommerce.http`.
+- **Clean up after testing.** Delete any test data you created (users, carts, orders, payments) and restore anything you changed (stock, prices, flags) to its previous value. Check the database afterwards.
 
 ## Commands
 ```bash

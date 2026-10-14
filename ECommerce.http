@@ -99,7 +99,7 @@ Content-Type: application/json
 ###
 @itemId = {{addItem.response.body.$.data.items[0].id}}
 
-### More than the stock -> 400
+### More than the stock -> 409
 POST {{baseUrl}}/api/cart/items
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -143,4 +143,49 @@ Authorization: Bearer {{token}}
 
 ### Empty the cart -> 204
 DELETE {{baseUrl}}/api/cart
+Authorization: Bearer {{token}}
+
+### --- Orders (T8, Customer only) ---
+
+### Put something in the cart first
+POST {{baseUrl}}/api/cart/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "quantity": 1
+}
+
+### Checkout -> 201. Empty cart -> 400; not enough stock -> 409 naming the product
+# @name placeOrder
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "shippingFullName": "Ada King",
+  "shippingPhone": "08087654321",
+  "street": "12 Marina Road",
+  "city": "Lagos",
+  "state": "Lagos"
+}
+
+###
+@orderId = {{placeOrder.response.body.$.data.id}}
+
+### My orders, newest first
+GET {{baseUrl}}/api/orders?page=1&pageSize=10
+Authorization: Bearer {{token}}
+
+### One order with its lines (snapshot name and price)
+GET {{baseUrl}}/api/orders/{{orderId}}
+Authorization: Bearer {{token}}
+
+### Someone else's or unknown order -> 404
+GET {{baseUrl}}/api/orders/99999
+Authorization: Bearer {{token}}
+
+### Cancel (Pending only) -> 200, stock returned. Cancelling again -> 409
+POST {{baseUrl}}/api/orders/{{orderId}}/cancel
 Authorization: Bearer {{token}}

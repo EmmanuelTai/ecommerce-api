@@ -131,13 +131,13 @@ Any other change → 409 Conflict.
 - [x] Uses **tracked** entities, because we're updating them.
 
 ### T8 · Checkout and orders (Customer role)
-- [ ] `POST /api/orders {shippingFullName, shippingPhone, street, city, state}`. Inside **one Unit of Work transaction**:
+- [x] `POST /api/orders {shippingFullName, shippingPhone, street, city, state}`. Inside **one Unit of Work transaction**:
   1. Load the cart with items and products (**eager loading**). Empty → 400.
   2. For each item: `UPDATE Products SET StockQuantity = StockQuantity - @qty WHERE Id = @id AND StockQuantity >= @qty AND IsActive = 1`. 0 rows → roll back, 409 naming the product. *(Stops two buyers both taking the last item.)*
   3. Create the order (`Pending`, order number `ORD-yyyyMMdd-XXXXXX`) and order items with **snapshot** name and price from the DB.
   4. Clear the cart, commit.
-- [ ] `GET /api/orders` (mine, newest first, paginated), `GET /api/orders/{id}` (mine, with `Include(o => o.Items)`; someone else's → 404).
-- [ ] `POST /api/orders/{id}/cancel`: only `Pending`; returns stock in a transaction.
+- [x] `GET /api/orders` (mine, newest first, paginated), `GET /api/orders/{id}` (mine, with `Include(o => o.Items)`; someone else's → 404).
+- [x] `POST /api/orders/{id}/cancel`: only `Pending`; returns stock in a transaction.
 - **Interview:** transactions; why the conditional update beats read-then-check; eager vs lazy loading and the N+1 problem; why 404 instead of 403 for other people's orders.
 
 ### T9 · Email over SMTP

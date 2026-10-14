@@ -106,11 +106,12 @@ public class CartService(IUnitOfWork unitOfWork, ICurrentUserService currentUser
 
     // A friendly early check. Stock can still change between now and checkout; the conditional UPDATE
     // at checkout (T8) is what actually prevents overselling.
+    // 409, not 400: the request is valid, it just conflicts with the current stock. Checkout uses 409 for the same case.
     private static void EnsureInStock(Product product, int quantity)
     {
         if (quantity > product.StockQuantity)
         {
-            throw new BadRequestException(product.StockQuantity == 0
+            throw new ConflictException(product.StockQuantity == 0
                 ? $"{product.Name} is out of stock."
                 : $"Only {product.StockQuantity} of {product.Name} left in stock.");
         }
