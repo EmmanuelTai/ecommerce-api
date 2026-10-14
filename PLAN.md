@@ -50,18 +50,20 @@ ECommerce/
 
 ## Data model
 
+**Naming:** tables and columns use EF Core's default **PascalCase** (`Products.StockQuantity`), the same as the C# entities. This is the SQL Server convention, and it needs no naming-convention config or extra package.
+
 | Table | Key columns |
 |---|---|
-| users | id, full_name, email (unique), password_hash, phone, role (`Customer`/`Admin`), created_at |
-| categories | id, name (unique), slug (unique) |
-| products | id, category_id, name, slug (unique), description, **price decimal(18,2)**, stock_quantity, image_url, is_active, created_at, updated_at |
-| carts | id, user_id (unique) |
-| cart_items | id, cart_id, product_id, quantity. Unique (cart_id, product_id) |
-| orders | id, user_id, order_number (unique), status, **total_amount decimal(18,2)**, shipping_full_name, shipping_phone, shipping_street, shipping_city, shipping_state, created_at, updated_at |
-| order_items | id, order_id, product_id, product_name *(snapshot)*, **unit_price** *(snapshot)*, quantity, **subtotal** |
-| payments | id, order_id, reference (unique), amount, status (`Pending`/`Successful`/`Failed`), paid_at |
+| Users | Id, FullName, Email (unique), PasswordHash, Phone, Role (`Customer`/`Admin`), CreatedAt |
+| Categories | Id, Name (unique), Slug (unique) |
+| Products | Id, CategoryId, Name, Slug (unique), Description, **Price decimal(18,2)**, StockQuantity, ImageUrl, IsActive, CreatedAt, UpdatedAt |
+| Carts | Id, UserId (unique) |
+| CartItems | Id, CartId, ProductId, Quantity. Unique (CartId, ProductId) |
+| Orders | Id, UserId, OrderNumber (unique), Status, **TotalAmount decimal(18,2)**, ShippingFullName, ShippingPhone, ShippingStreet, ShippingCity, ShippingState, CreatedAt, UpdatedAt |
+| OrderItems | Id, OrderId, ProductId, ProductName *(snapshot)*, **UnitPrice** *(snapshot)*, Quantity, **Subtotal** |
+| Payments | Id, OrderId, Reference (unique), Amount, Status (`Pending`/`Successful`/`Failed`), PaidAt |
 
-DB-level CHECK constraints: `price > 0`, `stock_quantity >= 0`, `quantity > 0`.
+DB-level CHECK constraints: `Price > 0`, `StockQuantity >= 0`, `Quantity > 0`.
 
 **Order status flow**
 ```
@@ -88,13 +90,13 @@ Any other change → 409 Conflict.
 - [x] `AppDbContext` with Fluent API configurations: `decimal(18,2)`, unique indexes, CHECK constraints, relationships (Restrict for products, Cascade for cart/order items).
 - [x] Automatic `created_at` / `updated_at` in `SaveChangesAsync`.
 - [x] Initial migration.
-- [x] Seeder: 1 admin (credentials from config), 4 categories, ~20 products, 1 test customer. Runs only if the DB is empty.
+- [x] Seeder: 1 admin (credentials from config), 4 categories, ~20 products, 1 test customer (Development only). Runs only if the DB is empty. BCrypt work factor 12.
 - **Interview:** why `decimal` not `double`; why snapshots; why soft delete.
 
 ### T3 · Repositories, Unit of Work, DI
-- [ ] `IGenericRepository<T>` (GetById, Add, Update, Remove, Query) + specific repos where needed (`IProductRepository`, `IOrderRepository`, `ICartRepository`).
-- [ ] `IUnitOfWork`: exposes the repositories + `SaveChangesAsync`, `BeginTransactionAsync`, `CommitAsync`, `RollbackAsync`.
-- [ ] Register everything in DI with an extension method (`AddInfrastructure()`), choosing lifetimes deliberately.
+- [x] `IGenericRepository<T>` (GetById, Add, Update, Remove) + specific repos where needed (`IProductRepository`, `IOrderRepository`, `ICartRepository`). No `IQueryable` on the interface: Core has no EF Core reference, so services couldn't run it async. Queries live in the specific repos, and each task adds the ones it needs.
+- [x] `IUnitOfWork`: exposes the repositories + `SaveChangesAsync`, `BeginTransactionAsync`, `CommitAsync` (saves, then commits), `RollbackAsync`.
+- [x] Register everything in DI with an extension method (`AddInfrastructure()`: DbContext, UnitOfWork, seeder), choosing lifetimes deliberately.
 - **Interview:** "Isn't DbContext already a Unit of Work?" Yes. The wrapper keeps services independent of EF, groups repositories behind one commit, and gives one place to control transactions.
 
 ### T4 · Middleware and error format
@@ -131,7 +133,7 @@ Any other change → 409 Conflict.
 ### T8 · Checkout and orders (Customer role)
 - [ ] `POST /api/orders {shippingFullName, shippingPhone, street, city, state}`. Inside **one Unit of Work transaction**:
   1. Load the cart with items and products (**eager loading**). Empty → 400.
-  2. For each item: `UPDATE products SET stock = stock - @qty WHERE id = @id AND stock >= @qty AND is_active = 1`. 0 rows → roll back, 409 naming the product. *(Stops two buyers both taking the last item.)*
+  2. For each item: `UPDATE Products SET StockQuantity = StockQuantity - @qty WHERE Id = @id AND StockQuantity >= @qty AND IsActive = 1`. 0 rows → roll back, 409 naming the product. *(Stops two buyers both taking the last item.)*
   3. Create the order (`Pending`, order number `ORD-yyyyMMdd-XXXXXX`) and order items with **snapshot** name and price from the DB.
   4. Clear the cart, commit.
 - [ ] `GET /api/orders` (mine, newest first, paginated), `GET /api/orders/{id}` (mine, with `Include(o => o.Items)`; someone else's → 404).

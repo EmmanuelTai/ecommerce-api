@@ -1,7 +1,6 @@
 using ECommerce.Core.Settings;
-using ECommerce.Infrastructure.Data;
+using ECommerce.Infrastructure;
 using ECommerce.Infrastructure.Data.Seeding;
-using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,10 +21,8 @@ builder.Services.AddOptions<SeedSettings>()
     .Bind(builder.Configuration.GetSection(SeedSettings.SectionName))
     .ValidateDataAnnotations();
 
-// Scoped (the AddDbContext default): one DbContext per HTTP request. Moves into AddInfrastructure() in T3.
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddScoped<DbSeeder>();
+// DbContext, UnitOfWork and seeder. Lifetimes are explained in DependencyInjection.cs.
+builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -37,7 +34,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
-    await seeder.SeedAsync();
+    await seeder.SeedAsync(includeTestCustomer: app.Environment.IsDevelopment());
 }
 
 if (app.Environment.IsDevelopment())

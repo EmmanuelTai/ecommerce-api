@@ -13,10 +13,12 @@ public class SeedSettings
     [Required, MinLength(8)]
     public string AdminPassword { get; set; } = string.Empty;
 
-    [Required, EmailAddress]
-    public string CustomerEmail { get; set; } = string.Empty;
+    // The test customer is only seeded in Development, so these are optional (production doesn't need them).
+    // The seeder checks they are set when it actually uses them.
+    [EmailAddress]
+    public string? CustomerEmail { get; set; }
 
     // Secret: set with user-secrets ("Seed:CustomerPassword").
-    [Required, MinLength(8)]
-    public string CustomerPassword { get; set; } = string.Empty;
+    [MinLength(8)]
+    public string? CustomerPassword { get; set; }
 }

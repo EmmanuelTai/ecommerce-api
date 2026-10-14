@@ -9,7 +9,12 @@ namespace ECommerce.Infrastructure.Data.Seeding;
 
 public class DbSeeder(AppDbContext db, IOptions<SeedSettings> options, ILogger<DbSeeder> logger)
 {
-    public async Task SeedAsync(CancellationToken cancellationToken = default)
+    // Each +1 doubles the hashing time. 12 takes roughly 250ms: slow enough to hurt brute force,
+    // fast enough for one login. The library default is 11.
+    private const int BCryptWorkFactor = 12;
+
+    // includeTestCustomer is only true in Development: a known customer login must never exist in production.
+    public async Task SeedAsync(bool includeTestCustomer, CancellationToken cancellationToken = default)
     {
         // Only seed an empty database, so restarting the app never duplicates or overwrites data.
         if (await db.Users.AnyAsync(cancellationToken))
@@ -26,27 +31,37 @@ public class DbSeeder(AppDbContext db, IOptions<SeedSettings> options, ILogger<D
         {
             FullName = "Store Admin",
             Email = settings.AdminEmail,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(settings.AdminPassword),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(settings.AdminPassword, BCryptWorkFactor),
             Role = Role.Admin
         });
 
-        // Customers get an empty cart, the same as registering through the API.
-        db.Users.Add(new User
+        if (includeTestCustomer)
         {
-            FullName = "Test Customer",
-            Email = settings.CustomerEmail,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(settings.CustomerPassword),
-            Phone = "08012345678",
-            Role = Role.Customer,
-            Cart = new Cart()
-        });
+            if (string.IsNullOrWhiteSpace(settings.CustomerEmail) || string.IsNullOrWhiteSpace(settings.CustomerPassword))
+            {
+                throw new InvalidOperationException(
+                    "Seed:CustomerEmail and Seed:CustomerPassword must be set to seed the test customer.");
+            }
+
+            // Customers get an empty cart, the same as registering through the API.
+            db.Users.Add(new User
+            {
+                FullName = "Test Customer",
+                Email = settings.CustomerEmail,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(settings.CustomerPassword, BCryptWorkFactor),
+                Phone = "08012345678",
+                Role = Role.Customer,
+                Cart = new Cart()
+            });
+        }
 
         db.Categories.AddRange(CreateCategories());
 
         // One SaveChanges call runs in a single transaction: all of the seed is saved, or none of it.
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Seeded database: 2 users, {Categories} categories, {Products} products",
+        logger.LogInformation("Seeded database: {Users} users, {Categories} categories, {Products} products",
+            await db.Users.CountAsync(cancellationToken),
             await db.Categories.CountAsync(cancellationToken),
             await db.Products.CountAsync(cancellationToken));
     }
