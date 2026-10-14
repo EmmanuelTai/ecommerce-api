@@ -100,12 +100,12 @@ Any other change → 409 Conflict.
 - **Interview:** "Isn't DbContext already a Unit of Work?" Yes. The wrapper keeps services independent of EF, groups repositories behind one commit, and gives one place to control transactions.
 
 ### T4 · Middleware and error format
-- [ ] `ExceptionHandlingMiddleware`: catches `AppException` subclasses (`NotFoundException` 404, `BadRequestException` 400, `ConflictException` 409, `ForbiddenException` 403) → standard JSON; anything else → 500 with a generic message, full error logged.
-- [ ] `RequestLoggingMiddleware`: method, path, status code, duration, user ID. Never logs passwords or tokens.
-- [ ] Standard responses:
+- [x] `ExceptionHandlingMiddleware`: catches `AppException` subclasses (`NotFoundException` 404, `BadRequestException` 400, `ConflictException` 409, `ForbiddenException` 403) → standard JSON; anything else → 500 with a generic message, full error logged.
+- [x] `RequestLoggingMiddleware`: method, path, status code, duration, user ID. Never logs passwords or tokens.
+- [x] Standard responses:
   - Success `{ "success": true, "data": ..., "meta"?: {page, pageSize, totalCount, totalPages} }`
   - Error `{ "success": false, "error": { "code": "...", "message": "..." } }`
-- [ ] Validation errors (DataAnnotations) use the same error format.
+- [x] Validation errors (DataAnnotations) use the same error format.
 - **Interview:** pipeline order (exception handler first, then authentication, then authorization), and why.
 
 ### T5 · Auth and roles
