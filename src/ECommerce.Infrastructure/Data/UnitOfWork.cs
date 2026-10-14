@@ -9,7 +9,7 @@ public class UnitOfWork(AppDbContext db) : IUnitOfWork
 {
     private IDbContextTransaction? _transaction;
 
-    private IGenericRepository<User>? _users;
+    private IUserRepository? _users;
     private IGenericRepository<Category>? _categories;
     private IProductRepository? _products;
     private ICartRepository? _carts;
@@ -18,7 +18,7 @@ public class UnitOfWork(AppDbContext db) : IUnitOfWork
 
     // Created on first use and all given the same DbContext, so they share one change tracker
     // and one connection. That shared context is what makes this a single unit of work.
-    public IGenericRepository<User> Users => _users ??= new GenericRepository<User>(db);
+    public IUserRepository Users => _users ??= new UserRepository(db);
     public IGenericRepository<Category> Categories => _categories ??= new GenericRepository<Category>(db);
     public IProductRepository Products => _products ??= new ProductRepository(db);
     public ICartRepository Carts => _carts ??= new CartRepository(db);

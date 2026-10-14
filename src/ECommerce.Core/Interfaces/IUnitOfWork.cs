@@ -6,7 +6,7 @@ namespace ECommerce.Core.Interfaces;
 // so a single SaveChangesAsync (or transaction) covers changes made through any of them.
 public interface IUnitOfWork
 {
-    IGenericRepository<User> Users { get; }
+    IUserRepository Users { get; }
     IGenericRepository<Category> Categories { get; }
     IProductRepository Products { get; }
     ICartRepository Carts { get; }

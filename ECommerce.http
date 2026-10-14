@@ -3,3 +3,52 @@
 
 ### OpenAPI document
 GET {{baseUrl}}/openapi/v1.json
+
+### --- Auth (T5) ---
+
+### Register (always a Customer; a "role" in the body is ignored)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Ada Lovelace",
+  "email": "ada@example.com",
+  "password": "Passw0rd!",
+  "phone": "08012345678"
+}
+
+### Login: copy data.token into @token below
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ada@example.com",
+  "password": "Passw0rd!"
+}
+
+###
+@token = {{login.response.body.$.data.token}}
+
+### Who am I
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Update my profile (name and phone only)
+PUT {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fullName": "Ada King",
+  "phone": "08087654321"
+}
+
+### No token -> 401
+GET {{baseUrl}}/api/auth/me
+
+### Malformed JSON -> 400 INVALID_JSON
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "ada@example.com",

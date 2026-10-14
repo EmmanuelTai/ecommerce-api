@@ -109,11 +109,11 @@ Any other change → 409 Conflict.
 - **Interview:** pipeline order (exception handler first, then authentication, then authorization), and why.
 
 ### T5 · Auth and roles
-- [ ] `POST /api/auth/register`: always creates a `Customer` (role can't be sent), hashes the password (BCrypt), creates an empty cart. Duplicate email → 409.
-- [ ] `POST /api/auth/login` → JWT with `sub`, `email`, `role` claims. Same message for a wrong email or a wrong password.
-- [ ] `GET /api/auth/me`, `PUT /api/auth/me` (name, phone).
-- [ ] `ICurrentUserService` reads the user ID from claims. Services never trust a user ID from the URL or body.
-- [ ] Logout = the client deletes the token (stateless JWT; explain the trade-off).
+- [x] `POST /api/auth/register`: always creates a `Customer` (role can't be sent), hashes the password (BCrypt), creates an empty cart. Duplicate email → 409.
+- [x] `POST /api/auth/login` → JWT with `sub`, `email`, `role` claims. Same message for a wrong email or a wrong password.
+- [x] `GET /api/auth/me`, `PUT /api/auth/me` (name, phone).
+- [x] `ICurrentUserService` reads the user ID from claims. Services never trust a user ID from the URL or body.
+- [x] Logout = the client deletes the token (stateless JWT; explain the trade-off).
 - **Interview:** 401 vs 403; why the admin is seeded and can't register.
 
 ### T6 · Products and categories (public) + caching
