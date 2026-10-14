@@ -1,4 +1,7 @@
 using ECommerce.Core.Settings;
+using ECommerce.Infrastructure.Data;
+using ECommerce.Infrastructure.Data.Seeding;
+using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,11 +18,27 @@ builder.Services.AddOptions<SmtpSettings>()
 builder.Services.AddOptions<PaystackSettings>()
     .Bind(builder.Configuration.GetSection(PaystackSettings.SectionName))
     .ValidateDataAnnotations();
+builder.Services.AddOptions<SeedSettings>()
+    .Bind(builder.Configuration.GetSection(SeedSettings.SectionName))
+    .ValidateDataAnnotations();
+
+// Scoped (the AddDbContext default): one DbContext per HTTP request. Moves into AddInfrastructure() in T3.
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<DbSeeder>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Seed once at startup. There is no HTTP request here, so we create a scope by hand
+// to get scoped services (DbContext). Migrations are applied separately with `dotnet ef database update`.
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
+    await seeder.SeedAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -33,4 +52,4 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+await app.RunAsync();

@@ -84,11 +84,11 @@ Any other change → 409 Conflict.
 - **Done when:** the app runs and `/scalar` loads.
 
 ### T2 · Entities, DbContext, migration, seed
-- [ ] Entities + enums (`Role`, `OrderStatus`, `PaymentStatus`). Enums stored as strings.
-- [ ] `AppDbContext` with Fluent API configurations: `decimal(18,2)`, unique indexes, CHECK constraints, relationships (Restrict for products, Cascade for cart/order items).
-- [ ] Automatic `created_at` / `updated_at` in `SaveChangesAsync`.
-- [ ] Initial migration.
-- [ ] Seeder: 1 admin (credentials from config), 4 categories, ~20 products, 1 test customer. Runs only if the DB is empty.
+- [x] Entities + enums (`Role`, `OrderStatus`, `PaymentStatus`). Enums stored as strings.
+- [x] `AppDbContext` with Fluent API configurations: `decimal(18,2)`, unique indexes, CHECK constraints, relationships (Restrict for products, Cascade for cart/order items).
+- [x] Automatic `created_at` / `updated_at` in `SaveChangesAsync`.
+- [x] Initial migration.
+- [x] Seeder: 1 admin (credentials from config), 4 categories, ~20 products, 1 test customer. Runs only if the DB is empty.
 - **Interview:** why `decimal` not `double`; why snapshots; why soft delete.
 
 ### T3 · Repositories, Unit of Work, DI
