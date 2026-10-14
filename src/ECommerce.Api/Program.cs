@@ -47,6 +47,7 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICartService, CartService>();
 
 // IMemoryCache is a singleton: one in-process cache shared by every request. Fine for one server;
 // with several servers each would have its own copy, and you'd move to a shared cache like Redis.

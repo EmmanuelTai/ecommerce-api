@@ -124,11 +124,11 @@ Any other change → 409 Conflict.
 - **Interview:** what change tracking costs; what you cache and why carts and orders aren't cached.
 
 ### T7 · Cart (Customer role)
-- [ ] `GET /api/cart`: current prices, line subtotals, total, and a flag on lines whose product became unavailable.
-- [ ] `POST /api/cart/items {productId, quantity}`: if already in the cart, increase the quantity; can't exceed stock; inactive product → 400.
-- [ ] `PUT /api/cart/items/{itemId} {quantity}` (0 removes), `DELETE /api/cart/items/{itemId}`, `DELETE /api/cart`.
-- [ ] Item must belong to the current user's cart, otherwise 404.
-- [ ] Uses **tracked** entities, because we're updating them.
+- [x] `GET /api/cart`: current prices, line subtotals, total, and a flag on lines whose product became unavailable.
+- [x] `POST /api/cart/items {productId, quantity}`: if already in the cart, increase the quantity; can't exceed stock; inactive product → 400.
+- [x] `PUT /api/cart/items/{itemId} {quantity}` (0 removes), `DELETE /api/cart/items/{itemId}`, `DELETE /api/cart`.
+- [x] Item must belong to the current user's cart, otherwise 404.
+- [x] Uses **tracked** entities, because we're updating them.
 
 ### T8 · Checkout and orders (Customer role)
 - [ ] `POST /api/orders {shippingFullName, shippingPhone, street, city, state}`. Inside **one Unit of Work transaction**:

@@ -78,3 +78,69 @@ GET {{baseUrl}}/api/products?pageSize=100&sortBy=cheapest
 
 ### minPrice > maxPrice -> 400
 GET {{baseUrl}}/api/products?minPrice=500&maxPrice=100
+
+### --- Cart (T7, Customer only; log in above first) ---
+
+### My cart: current prices, subtotals, total, and isAvailable per line
+GET {{baseUrl}}/api/cart
+Authorization: Bearer {{token}}
+
+### Add a product (adding it again increases the quantity)
+# @name addItem
+POST {{baseUrl}}/api/cart/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "quantity": 2
+}
+
+###
+@itemId = {{addItem.response.body.$.data.items[0].id}}
+
+### More than the stock -> 400
+POST {{baseUrl}}/api/cart/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "quantity": 1000
+}
+
+### Unknown product -> 404
+POST {{baseUrl}}/api/cart/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "productId": 99999,
+  "quantity": 1
+}
+
+### Set a line's quantity (0 removes it)
+PUT {{baseUrl}}/api/cart/items/{{itemId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "quantity": 3
+}
+
+### Item not in my cart -> 404
+PUT {{baseUrl}}/api/cart/items/99999
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "quantity": 1
+}
+
+### Remove one line -> 204
+DELETE {{baseUrl}}/api/cart/items/{{itemId}}
+Authorization: Bearer {{token}}
+
+### Empty the cart -> 204
+DELETE {{baseUrl}}/api/cart
+Authorization: Bearer {{token}}
