@@ -1,5 +1,6 @@
 using ECommerce.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace ECommerce.Infrastructure.Data;
 
@@ -28,7 +29,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         // Enums stored as readable strings ("Pending"), so reordering an enum can't corrupt data.
         configurationBuilder.Properties<Enum>().HaveConversion<string>().HaveMaxLength(20);
+
+        // SQL Server's datetime2 has no time zone, so EF reads values back as DateTimeKind.Unspecified and
+        // JSON shows them without a "Z". We only ever store UTC, so mark every DateTime read as UTC.
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+        configurationBuilder.Properties<DateTime?>().HaveConversion<UtcDateTimeConverter>();
     }
+
+    // Writes the value unchanged; on read, labels it as UTC (SpecifyKind doesn't shift the time).
+    private class UtcDateTimeConverter() : ValueConverter<DateTime, DateTime>(
+        value => value,
+        value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {

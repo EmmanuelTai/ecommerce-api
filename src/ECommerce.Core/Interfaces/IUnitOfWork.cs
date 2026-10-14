@@ -7,7 +7,7 @@ namespace ECommerce.Core.Interfaces;
 public interface IUnitOfWork
 {
     IUserRepository Users { get; }
-    IGenericRepository<Category> Categories { get; }
+    ICategoryRepository Categories { get; }
     IProductRepository Products { get; }
     ICartRepository Carts { get; }
     IOrderRepository Orders { get; }

@@ -52,3 +52,29 @@ POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 { "email": "ada@example.com",
+
+### --- Catalogue (T6, public) ---
+
+### Categories (cached 30 min)
+GET {{baseUrl}}/api/categories
+
+### Products: first page, newest first
+GET {{baseUrl}}/api/products
+
+### Products: search, filter and sort
+GET {{baseUrl}}/api/products?search=shirt&minPrice=1000&maxPrice=50000&sortBy=price_asc&page=1&pageSize=5
+
+### Products in one category
+GET {{baseUrl}}/api/products?categoryId=1
+
+### One product (cached 10 min)
+GET {{baseUrl}}/api/products/1
+
+### Unknown product -> 404
+GET {{baseUrl}}/api/products/99999
+
+### pageSize over 50 / unknown sortBy -> 400 VALIDATION_ERROR
+GET {{baseUrl}}/api/products?pageSize=100&sortBy=cheapest
+
+### minPrice > maxPrice -> 400
+GET {{baseUrl}}/api/products?minPrice=500&maxPrice=100

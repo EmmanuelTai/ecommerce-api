@@ -11,12 +11,17 @@ public class AuthService(IUnitOfWork unitOfWork, ITokenService tokenService, ICu
     // Same as the seeder. Each +1 doubles the hashing time; 12 is roughly 250 ms, slow enough to hurt brute force.
     private const int BCryptWorkFactor = 12;
 
+    // Verified against when the email is unknown, so that login takes the same ~250 ms either way.
+    // Without it, an unknown email returns instantly and response time reveals which emails have accounts.
+    // Hashed once when the class is first used, with the same work factor as real hashes.
+    private static readonly string DummyPasswordHash = BCrypt.Net.BCrypt.HashPassword("dummy-password", BCryptWorkFactor);
+
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
     {
         var email = NormalizeEmail(request.Email);
 
         // Friendly 409 for the normal case. Two simultaneous sign-ups with the same email could both pass
-        // this check; the unique index on Email still stops the second one (it surfaces as a 500).
+        // this check; the unique index on Email still stops the second one, and UnitOfWork turns that into a 409.
         if (await unitOfWork.Users.EmailExistsAsync(email, cancellationToken))
         {
             throw new ConflictException("An account with this email already exists.");
@@ -42,8 +47,10 @@ public class AuthService(IUnitOfWork unitOfWork, ITokenService tokenService, ICu
     {
         var user = await unitOfWork.Users.GetByEmailAsync(NormalizeEmail(request.Email), cancellationToken);
 
-        // One message for both cases, so the response doesn't reveal which emails have accounts.
-        if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        // Always run the (slow) verify, even for an unknown email, and use one message for both cases,
+        // so neither the response body nor its timing reveals which emails have accounts.
+        var passwordValid = BCrypt.Net.BCrypt.Verify(request.Password, user?.PasswordHash ?? DummyPasswordHash);
+        if (user is null || !passwordValid)
         {
             throw new UnauthorizedException("Invalid email or password.");
         }

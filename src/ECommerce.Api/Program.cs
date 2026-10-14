@@ -45,6 +45,12 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+
+// IMemoryCache is a singleton: one in-process cache shared by every request. Fine for one server;
+// with several servers each would have its own copy, and you'd move to a shared cache like Redis.
+builder.Services.AddMemoryCache();
 // Singleton: it only holds the settings and keeps no per-request state.
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 

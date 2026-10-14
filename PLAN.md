@@ -117,10 +117,10 @@ Any other change → 409 Conflict.
 - **Interview:** 401 vs 403; why the admin is seeded and can't register.
 
 ### T6 · Products and categories (public) + caching
-- [ ] `GET /api/categories` (cached 30 min).
-- [ ] `GET /api/products?page&pageSize&search&categoryId&minPrice&maxPrice&sortBy` (`newest`, `price_asc`, `price_desc`). Active only, pageSize max 50.
-- [ ] `GET /api/products/{id}` (cached 10 min). Inactive → 404.
-- [ ] All reads use **`AsNoTracking()`** and project to DTOs with `Select`.
+- [x] `GET /api/categories` (cached 30 min).
+- [x] `GET /api/products?page&pageSize&search&categoryId&minPrice&maxPrice&sortBy` (`newest`, `price_asc`, `price_desc`). Active only, pageSize max 50.
+- [x] `GET /api/products/{id}` (cached 10 min). Inactive → 404.
+- [x] All reads use **`AsNoTracking()`** and project to DTOs with `Select`.
 - **Interview:** what change tracking costs; what you cache and why carts and orders aren't cached.
 
 ### T7 · Cart (Customer role)
