@@ -1,0 +1,351 @@
+{
+  "info": {
+    "name": "ECommerce API",
+    "description": "Every endpoint built so far. Select the \"ECommerce Local\" environment, run Auth > Login, and the token is saved for every other request.\n\nCollection auth is Bearer {{token}}; public endpoints override it with No Auth.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ada Lovelace\",\n  \"email\": \"ada@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"phone\": \"08012345678\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Always creates a Customer; a \"role\" in the body is ignored. 201, 400 on validation errors, 409 if the email is taken."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Save the JWT so the collection's Bearer auth picks it up on every later request.",
+                  "const body = pm.response.json();",
+                  "if (pm.response.code === 200 && body.success && body.data && body.data.token) {",
+                  "    pm.environment.set(\"token\", body.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ada@example.com\",\n  \"password\": \"Passw0rd!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "200 with data.token (saved to {{token}} by the post-response script). 401 on wrong email or password."
+          }
+        },
+        {
+          "name": "Get me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "The current user. 401 without a token."
+          }
+        },
+        {
+          "name": "Update me",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ada King\",\n  \"phone\": \"08087654321\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Name and phone only; email and role can't be changed here."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalogue",
+      "auth": { "type": "noauth" },
+      "item": [
+        {
+          "name": "Get categories",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            },
+            "description": "Public. Cached for 30 minutes."
+          }
+        },
+        {
+          "name": "Get products",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products?page=1&pageSize=10&sortBy=newest",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"],
+              "query": [
+                { "key": "page", "value": "1", "description": "1 or more (default 1)" },
+                { "key": "pageSize", "value": "10", "description": "1-50 (default 10)" },
+                { "key": "search", "value": "shirt", "description": "Matches the product name, max 100 chars", "disabled": true },
+                { "key": "categoryId", "value": "1", "disabled": true },
+                { "key": "minPrice", "value": "1000", "disabled": true },
+                { "key": "maxPrice", "value": "50000", "description": "Must be >= minPrice", "disabled": true },
+                { "key": "sortBy", "value": "newest", "description": "newest | price_asc | price_desc" }
+              ]
+            },
+            "description": "Public. Active products only, paged; paging info is in meta. Tick the disabled query params to filter. 400 on invalid paging, sort or price range."
+          }
+        },
+        {
+          "name": "Get product by id",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "1"]
+            },
+            "description": "Public. Cached for 10 minutes. 404 if unknown or inactive."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "description": "Customer token required (log in first). Admin token → 403.",
+      "item": [
+        {
+          "name": "Get cart",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cart",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cart"]
+            },
+            "description": "Current prices, line subtotals, total, and isAvailable per line."
+          }
+        },
+        {
+          "name": "Add item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Save the first line's id for Update item / Remove item.",
+                  "const body = pm.response.json();",
+                  "if (pm.response.code === 200 && body.data && body.data.items && body.data.items.length) {",
+                  "    pm.environment.set(\"itemId\", body.data.items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 2\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cart/items",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cart", "items"]
+            },
+            "description": "Adding a product already in the cart increases its quantity. 404 unknown product, 409 more than the stock."
+          }
+        },
+        {
+          "name": "Update item quantity",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 3\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cart/items/{{itemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cart", "items", "{{itemId}}"]
+            },
+            "description": "Sets the line's quantity; 0 removes it. 404 if the item isn't in your cart, 409 more than the stock."
+          }
+        },
+        {
+          "name": "Remove item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cart/items/{{itemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cart", "items", "{{itemId}}"]
+            },
+            "description": "204. 404 if the item isn't in your cart."
+          }
+        },
+        {
+          "name": "Clear cart",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cart",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cart"]
+            },
+            "description": "204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "description": "Customer token required. Someone else's order → 404.",
+      "item": [
+        {
+          "name": "Place order (checkout)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Save the new order's id for Get order / Cancel order.",
+                  "const body = pm.response.json();",
+                  "if (pm.response.code === 201 && body.data && body.data.id) {",
+                  "    pm.environment.set(\"orderId\", body.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shippingFullName\": \"Ada King\",\n  \"shippingPhone\": \"08087654321\",\n  \"street\": \"12 Marina Road\",\n  \"city\": \"Lagos\",\n  \"state\": \"Lagos\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "Turns the cart into a Pending order. Only delivery details are sent; items and prices come from the cart and database. 201, 400 empty cart, 409 not enough stock."
+          }
+        },
+        {
+          "name": "Get my orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "10", "description": "1-50" }
+              ]
+            },
+            "description": "Newest first, paged."
+          }
+        },
+        {
+          "name": "Get order by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}"]
+            },
+            "description": "The order with its lines (name and price snapshotted at checkout)."
+          }
+        },
+        {
+          "name": "Cancel order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}", "cancel"]
+            },
+            "description": "Pending orders only; stock is returned. 409 if already cancelled or past Pending."
+          }
+        }
+      ]
+    }
+  ]
+}
