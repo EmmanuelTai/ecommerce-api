@@ -14,7 +14,7 @@ public class SmtpSettings
 
     public bool UseSsl { get; set; }
 
-    // Mailpit needs no credentials, so these are optional. Real SMTP: set them with user-secrets.
+    // smtp4dev and Mailpit need no credentials, so these are optional. Real SMTP: set them with user-secrets.
     public string? Username { get; set; }
     public string? Password { get; set; }
 

@@ -1,23 +1,33 @@
 using System.Security.Cryptography;
+using ECommerce.Core.DTOs.Auth;
 using ECommerce.Core.DTOs.Common;
 using ECommerce.Core.DTOs.Orders;
 using ECommerce.Core.Entities;
 using ECommerce.Core.Enums;
 using ECommerce.Core.Exceptions;
 using ECommerce.Core.Interfaces;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ECommerce.Core.Services;
 
-public class OrderService(IUnitOfWork unitOfWork, ICurrentUserService currentUser) : IOrderService
+public class OrderService(
+    IUnitOfWork unitOfWork,
+    ICurrentUserService currentUser,
+    IEmailService emailService,
+    IMemoryCache cache) : IOrderService
 {
     private const string OrderNumberChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // No 0/O or 1/I, easy to read out.
 
     public async Task<OrderDto> PlaceOrderAsync(CreateOrderRequest request, CancellationToken cancellationToken = default)
     {
+        // Loaded up front for the confirmation email, so nothing after the commit can fail on a database read.
+        var customer = await GetCurrentCustomerAsync(cancellationToken);
+
         // One transaction around the whole checkout: the stock updates, the new order and the emptied cart
         // are saved together or not at all. Without it, a failure on the third line would leave stock taken
         // for the first two with no order to show for it.
         int orderId;
+        List<int> productIds;
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -79,6 +89,7 @@ public class OrderService(IUnitOfWork unitOfWork, ICurrentUserService currentUse
             // Saves the order, its lines and the cart deletes, then commits together with the stock updates.
             await unitOfWork.CommitAsync(cancellationToken);
             orderId = order.Id; // Filled in by SaveChanges.
+            productIds = lines.Select(l => l.ProductId).ToList();
         }
         catch
         {
@@ -88,7 +99,18 @@ public class OrderService(IUnitOfWork unitOfWork, ICurrentUserService currentUse
             throw;
         }
 
-        return await GetMyOrderAsync(orderId, cancellationToken);
+        // Only after the commit: if the transaction had rolled back, the cached stock would still be right.
+        RemoveCachedProducts(productIds);
+
+        var placed = await GetMyOrderAsync(orderId, cancellationToken);
+
+        // After the commit, never inside the transaction: an email can't be rolled back, so sending it earlier
+        // could confirm an order that then fails. CancellationToken.None, because the order exists now and the
+        // customer should get the email even if they disconnected. SendAsync never throws.
+        await emailService.SendAsync(
+            EmailTemplates.OrderPlaced(customer.Email, customer.FullName, placed), CancellationToken.None);
+
+        return placed;
     }
 
     public Task<PagedResult<OrderSummaryDto>> GetMyOrdersAsync(OrderQuery query, CancellationToken cancellationToken = default) =>
@@ -101,8 +123,11 @@ public class OrderService(IUnitOfWork unitOfWork, ICurrentUserService currentUse
 
     public async Task<OrderDto> CancelAsync(int orderId, CancellationToken cancellationToken = default)
     {
+        var customer = await GetCurrentCustomerAsync(cancellationToken);
+
         // Status change and stock return in one transaction: either the order is cancelled and its stock is back,
         // or neither happened.
+        List<int> productIds;
         await unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -126,6 +151,7 @@ public class OrderService(IUnitOfWork unitOfWork, ICurrentUserService currentUse
             }
 
             await unitOfWork.CommitAsync(cancellationToken);
+            productIds = order.Items.Select(i => i.ProductId).ToList();
         }
         catch
         {
@@ -133,8 +159,31 @@ public class OrderService(IUnitOfWork unitOfWork, ICurrentUserService currentUse
             throw;
         }
 
+        RemoveCachedProducts(productIds);
+
         // Read back fresh: the tracked order above still says Pending, because ExecuteUpdate bypasses the change tracker.
-        return await GetMyOrderAsync(orderId, cancellationToken);
+        var cancelled = await GetMyOrderAsync(orderId, cancellationToken);
+
+        // After the commit, for the same reasons as the order-placed email.
+        await emailService.SendAsync(
+            EmailTemplates.OrderStatusChanged(customer.Email, customer.FullName, cancelled.OrderNumber, cancelled.Status),
+            CancellationToken.None);
+
+        return cancelled;
+    }
+
+    private async Task<UserDto> GetCurrentCustomerAsync(CancellationToken cancellationToken) =>
+        await unitOfWork.Users.GetDtoByIdAsync(currentUser.UserId, cancellationToken)
+            ?? throw new NotFoundException("User not found.");
+
+    // GET /api/products/{id} caches the product, stock count included, for 10 minutes. Stock just changed,
+    // so drop those entries and let the next read fetch the new count.
+    private void RemoveCachedProducts(IEnumerable<int> productIds)
+    {
+        foreach (var productId in productIds)
+        {
+            cache.Remove(CacheKeys.Product(productId));
+        }
     }
 
     // ORD-20261014-7KQ2MX. Random rather than sequential, so order numbers don't reveal how many orders

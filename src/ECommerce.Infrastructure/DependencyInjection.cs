@@ -1,6 +1,7 @@
 using ECommerce.Core.Interfaces;
 using ECommerce.Infrastructure.Data;
 using ECommerce.Infrastructure.Data.Seeding;
+using ECommerce.Infrastructure.Email;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +26,10 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<DbSeeder>();
+
+        // Transient: a new instance each time one is asked for. It keeps no state (each send opens its own
+        // SMTP connection), so there is nothing to share; singleton would work too, scoped would add nothing.
+        services.AddTransient<IEmailService, SmtpEmailService>();
 
         return services;
     }

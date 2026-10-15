@@ -6,7 +6,11 @@ using ECommerce.Core.Interfaces;
 
 namespace ECommerce.Core.Services;
 
-public class AuthService(IUnitOfWork unitOfWork, ITokenService tokenService, ICurrentUserService currentUser) : IAuthService
+public class AuthService(
+    IUnitOfWork unitOfWork,
+    ITokenService tokenService,
+    ICurrentUserService currentUser,
+    IEmailService emailService) : IAuthService
 {
     // Same as the seeder. Each +1 doubles the hashing time; 12 is roughly 250 ms, slow enough to hurt brute force.
     private const int BCryptWorkFactor = 12;
@@ -39,6 +43,10 @@ public class AuthService(IUnitOfWork unitOfWork, ITokenService tokenService, ICu
 
         unitOfWork.Users.Add(user);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // After the save, so we never welcome someone whose account failed to save. CancellationToken.None:
+        // the account exists now, so the email should go even if the client has disconnected. Never throws.
+        await emailService.SendAsync(EmailTemplates.Welcome(user.Email, user.FullName), CancellationToken.None);
 
         return CreateAuthResponse(user);
     }

@@ -141,10 +141,10 @@ Any other change → 409 Conflict.
 - **Interview:** transactions; why the conditional update beats read-then-check; eager vs lazy loading and the N+1 problem; why 404 instead of 403 for other people's orders.
 
 ### T9 · Email over SMTP
-- [ ] `IEmailService` → `SmtpEmailService` using **MailKit**; settings (host, port, user, password, from) from config.
-- [ ] Emails: welcome (register), order placed, payment received, order status changed.
-- [ ] Sent **after** the database commit, wrapped in try/catch: a failed email is logged and never breaks the order.
-- [ ] Dev testing with **Mailpit** (Docker: SMTP on `localhost:1025`, inbox UI at `http://localhost:8025`) or **smtp4dev** (`dotnet tool install -g Rnwood.Smtp4dev`, no Docker needed).
+- [x] `IEmailService` → `SmtpEmailService` using **MailKit**; settings (host, port, user, password, from) from config.
+- [x] Emails: welcome (register), order placed, payment received, order status changed. *(Templates all in `EmailTemplates`; payment received is sent from T10, admin status changes from T11; customer cancel already sends the status email.)*
+- [x] Sent **after** the database commit, wrapped in try/catch: a failed email is logged and never breaks the order.
+- [x] Dev testing with **Mailpit** (Docker: SMTP on `localhost:1025`, inbox UI at `http://localhost:8025`) or **smtp4dev** (`dotnet tool install -g Rnwood.Smtp4dev`, no Docker needed).
 - **Interview:** why email goes after the commit; what you'd change at scale (a queue / outbox).
 
 ### T10 · Paystack payments
