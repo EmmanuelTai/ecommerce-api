@@ -346,6 +346,138 @@
           }
         }
       ]
+    },
+    {
+      "name": "Payments",
+      "description": "Flow: Place order → Initialize payment → open authorizationUrl and pay with a Paystack test card → Verify payment (or send the signed webhook).\n\nThe webhook requests need paystackSecretKey (your sk_test_ key) in the environment. Put it in the CURRENT value only, never commit it.",
+      "item": [
+        {
+          "name": "Initialize payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Save the reference for Verify / Webhook, and print the checkout URL to open in a browser.",
+                  "const body = pm.response.json();",
+                  "if (pm.response.code === 200 && body.data) {",
+                  "    pm.environment.set(\"paymentReference\", body.data.reference);",
+                  "    pm.environment.set(\"authorizationUrl\", body.data.authorizationUrl);",
+                  "    console.log(\"Pay here:\", body.data.authorizationUrl);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/initialize/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "initialize", "{{orderId}}"]
+            },
+            "description": "Your Pending order only. Calls Paystack Initialize Transaction with the order total in kobo, creates a Pending payment and returns authorizationUrl (Paystack's checkout page). 404 not your order, 409 not Pending."
+          }
+        },
+        {
+          "name": "Verify payment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/verify/{{paymentReference}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "verify", "{{paymentReference}}"]
+            },
+            "description": "Backup for a missed webhook. Asks Paystack Verify Transaction; if the charge succeeded with the right amount, payment → Successful and order → Paid. Safe to call repeatedly. 404 if not your payment."
+          }
+        },
+        {
+          "name": "Webhook (valid signature)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Paystack signs each webhook: x-paystack-signature = HMAC-SHA512(raw body, secret key) as lowercase hex.",
+                  "// Do the same here. replaceIn fills in {{paymentReference}} first, so we sign exactly the bytes Postman sends.",
+                  "const CryptoJS = require(\"crypto-js\");",
+                  "const secret = pm.environment.get(\"paystackSecretKey\");",
+                  "if (!secret) {",
+                  "    throw new Error(\"Set paystackSecretKey (your sk_test_ key) in the environment's current value.\");",
+                  "}",
+                  "const body = pm.variables.replaceIn(pm.request.body.raw);",
+                  "const signature = CryptoJS.HmacSHA512(body, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.request.headers.upsert({ key: \"x-paystack-signature\", value: signature });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Signed webhook is accepted (200)\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{paymentReference}}\",\n    \"status\": \"success\",\n    \"amount\": 2500000,\n    \"currency\": \"NGN\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/webhook",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "webhook"]
+            },
+            "description": "Simulates Paystack calling us (no ngrok needed). The pre-request script signs the body. The API only uses event and data.reference from the body; it then asks Paystack Verify Transaction for the real status and amount. So the order only becomes Paid if you actually paid at authorizationUrl. Otherwise it stays Pending, still with 200."
+          }
+        },
+        {
+          "name": "Webhook (wrong signature)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Wrong signature is rejected (401)\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-paystack-signature", "value": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{paymentReference}}\",\n    \"status\": \"success\",\n    \"amount\": 2500000,\n    \"currency\": \"NGN\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/webhook",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "webhook"]
+            },
+            "description": "Same body, but a signature that wasn't made with the secret key. Must return 401, and nothing changes."
+          }
+        }
+      ]
     }
   ]
 }

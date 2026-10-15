@@ -1,4 +1,3 @@
-using ECommerce.Core.Entities;
 
 namespace ECommerce.Core.Interfaces;
 
@@ -11,7 +10,7 @@ public interface IUnitOfWork
     IProductRepository Products { get; }
     ICartRepository Carts { get; }
     IOrderRepository Orders { get; }
-    IGenericRepository<Payment> Payments { get; }
+    IPaymentRepository Payments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

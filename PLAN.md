@@ -44,7 +44,7 @@ ECommerce/
 ├── PLAN.md
 └── README.md
 ```
-**Dependency direction:** Api → Core ← Infrastructure. Core defines interfaces (`IUnitOfWork`, `IEmailService`, `IPaymentService`); Infrastructure implements them; DI in `Program.cs` connects them.
+**Dependency direction:** Api → Core ← Infrastructure. Core defines interfaces (`IUnitOfWork`, `IEmailService`, `IPaystackClient`); Infrastructure implements them; DI in `Program.cs` connects them.
 
 ---
 
@@ -148,11 +148,11 @@ Any other change → 409 Conflict.
 - **Interview:** why email goes after the commit; what you'd change at scale (a queue / outbox).
 
 ### T10 · Paystack payments
-- [ ] `POST /api/payments/initialize/{orderId}` (owner, order `Pending`): calls Paystack *Initialize Transaction* with `amount = total × 100` (kobo), creates a `Pending` payment with a unique reference, returns `authorizationUrl`.
-- [ ] `POST /api/payments/webhook` (anonymous): verifies the **`x-paystack-signature`** header (HMAC-SHA512 of the raw body with the secret key). Invalid → 401. On `charge.success`: confirms through *Verify Transaction*, checks the amount, then payment → `Successful` and order → `Paid`. Running it twice changes nothing (idempotent).
-- [ ] `GET /api/payments/verify/{reference}`: backup in case the webhook is missed.
-- [ ] Typed `HttpClient` for Paystack, registered via DI. Keys from user-secrets (test keys only).
-- [ ] Local webhook testing: expose the API with **ngrok** (or Cloudflare Tunnel) and set the URL in the Paystack dashboard.
+- [x] `POST /api/payments/initialize/{orderId}` (owner, order `Pending`): calls Paystack *Initialize Transaction* with `amount = total × 100` (kobo), creates a `Pending` payment with a unique reference, returns `authorizationUrl`.
+- [x] `POST /api/payments/webhook` (anonymous): verifies the **`x-paystack-signature`** header (HMAC-SHA512 of the raw body with the secret key). Invalid → 401. On `charge.success`: confirms through *Verify Transaction*, checks the amount, then payment → `Successful` and order → `Paid`. Running it twice changes nothing (idempotent).
+- [x] `GET /api/payments/verify/{reference}`: backup in case the webhook is missed.
+- [x] Typed `HttpClient` for Paystack (`IPaystackClient` → `PaystackClient`), registered via DI. Keys from user-secrets (test keys only); `ValidateOnStart`.
+- [x] Local testing without a tunnel: pay at the test checkout, confirm with the verify endpoint; send the webhook from Postman with a pre-request script that signs the body (plus a wrong-signature request → 401). In production the webhook URL is set in the Paystack dashboard.
 - **Known limitation to mention:** unpaid `Pending` orders hold stock until cancelled; at scale, a background job would cancel them after 30 minutes.
 
 ### T11 · Admin endpoints (`[Authorize(Roles = "Admin")]`)

@@ -189,3 +189,29 @@ Authorization: Bearer {{token}}
 ### Cancel (Pending only) -> 200, stock returned. Cancelling again -> 409
 POST {{baseUrl}}/api/orders/{{orderId}}/cancel
 Authorization: Bearer {{token}}
+
+### --- Payments (T10) ---
+### Flow: place an order above, initialize, open authorizationUrl in a browser and pay with a Paystack
+### test card, then verify. The signed webhook is easier from Postman (postman/ folder), which computes the signature.
+
+### Start a Paystack payment for my Pending order -> authorizationUrl. Not mine -> 404, not Pending -> 409
+# @name initPayment
+POST {{baseUrl}}/api/payments/initialize/{{orderId}}
+Authorization: Bearer {{token}}
+
+###
+@reference = {{initPayment.response.body.$.data.reference}}
+
+### Check with Paystack and confirm (safe to repeat): payment Successful + order Paid once actually paid
+GET {{baseUrl}}/api/payments/verify/{{reference}}
+Authorization: Bearer {{token}}
+
+### Webhook with a wrong signature -> 401
+POST {{baseUrl}}/api/payments/webhook
+Content-Type: application/json
+x-paystack-signature: 0000dead
+
+{
+  "event": "charge.success",
+  "data": { "reference": "{{reference}}" }
+}

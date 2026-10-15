@@ -17,7 +17,7 @@ public class UnitOfWork(AppDbContext db) : IUnitOfWork
     private IProductRepository? _products;
     private ICartRepository? _carts;
     private IOrderRepository? _orders;
-    private IGenericRepository<Payment>? _payments;
+    private IPaymentRepository? _payments;
 
     // Created on first use and all given the same DbContext, so they share one change tracker
     // and one connection. That shared context is what makes this a single unit of work.
@@ -26,7 +26,7 @@ public class UnitOfWork(AppDbContext db) : IUnitOfWork
     public IProductRepository Products => _products ??= new ProductRepository(db);
     public ICartRepository Carts => _carts ??= new CartRepository(db);
     public IOrderRepository Orders => _orders ??= new OrderRepository(db);
-    public IGenericRepository<Payment> Payments => _payments ??= new GenericRepository<Payment>(db);
+    public IPaymentRepository Payments => _payments ??= new PaymentRepository(db);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

@@ -29,10 +29,10 @@ builder.Services.AddOptions<SmtpSettings>()
     .Bind(builder.Configuration.GetSection(SmtpSettings.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
-// No ValidateOnStart yet: Paystack:SecretKey is only set up in T10. Add it then.
 builder.Services.AddOptions<PaystackSettings>()
     .Bind(builder.Configuration.GetSection(PaystackSettings.SectionName))
-    .ValidateDataAnnotations();
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddOptions<SeedSettings>()
     .Bind(builder.Configuration.GetSection(SeedSettings.SectionName))
     .ValidateDataAnnotations()
@@ -49,6 +49,7 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 // IMemoryCache is a singleton: one in-process cache shared by every request. Fine for one server;
 // with several servers each would have its own copy, and you'd move to a shared cache like Redis.
