@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using ECommerce.Core.DTOs.Admin;
 using ECommerce.Core.DTOs.Catalog;
 using ECommerce.Core.DTOs.Common;
 using ECommerce.Core.Entities;
@@ -95,4 +96,65 @@ public class ProductRepository(AppDbContext db) : GenericRepository<Product>(db)
                 .SetProperty(p => p.UpdatedAt, DateTime.UtcNow),
                 cancellationToken);
     }
+
+    private static readonly Expression<Func<Product, AdminProductDto>> ToAdminDto = p => new AdminProductDto(
+        p.Id, p.Name, p.Slug, p.Description, p.Price, p.StockQuantity, p.ImageUrl,
+        p.CategoryId, p.Category.Name, p.IsActive, p.CreatedAt, p.UpdatedAt);
+
+    // Like the public list, but without the IsActive filter unless the admin asks for one.
+    public async Task<PagedResult<AdminProductDto>> GetAdminDtosAsync(AdminProductQuery query, CancellationToken cancellationToken = default)
+    {
+        var products = Db.Products.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim();
+            products = products.Where(p => p.Name.Contains(search) || p.Description.Contains(search));
+        }
+
+        if (query.CategoryId is not null)
+        {
+            products = products.Where(p => p.CategoryId == query.CategoryId);
+        }
+
+        if (query.IsActive is not null)
+        {
+            products = products.Where(p => p.IsActive == query.IsActive);
+        }
+
+        var totalCount = await products.CountAsync(cancellationToken);
+        var items = await products
+            .OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(ToAdminDto)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<AdminProductDto>(items, new PaginationMeta(query.Page, query.PageSize, totalCount));
+    }
+
+    public Task<AdminProductDto?> GetAdminDtoByIdAsync(int id, CancellationToken cancellationToken = default) =>
+        Db.Products
+            .AsNoTracking()
+            .Where(p => p.Id == id)
+            .Select(ToAdminDto)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public Task<bool> SlugExistsAsync(string slug, int? excludeId = null, CancellationToken cancellationToken = default) =>
+        Db.Products.AnyAsync(p => p.Slug == slug && p.Id != excludeId, cancellationToken);
+
+    public async Task<IReadOnlyList<int>> GetIdsByCategoryIdAsync(int categoryId, CancellationToken cancellationToken = default) =>
+        await Db.Products
+            .Where(p => p.CategoryId == categoryId)
+            .Select(p => p.Id)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<LowStockProductDto>> GetLowStockAsync(int threshold, int count, CancellationToken cancellationToken = default) =>
+        await Db.Products
+            .AsNoTracking()
+            .Where(p => p.IsActive && p.StockQuantity <= threshold)
+            .OrderBy(p => p.StockQuantity).ThenBy(p => p.Id)
+            .Take(count)
+            .Select(p => new LowStockProductDto(p.Id, p.Name, p.StockQuantity))
+            .ToListAsync(cancellationToken);
 }

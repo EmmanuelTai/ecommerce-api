@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "ECommerce API",
-    "description": "Every endpoint built so far. Select the \"ECommerce Local\" environment, run Auth > Login, and the token is saved for every other request.\n\nCollection auth is Bearer {{token}}; public endpoints override it with No Auth.",
+    "description": "Every endpoint built so far. Select the \"ECommerce Local\" environment, run Auth > Login, and the token is saved for every other request.\n\nCollection auth is Bearer {{token}}; public endpoints override it with No Auth. The Admin folder uses {{adminToken}} instead (run Admin > Admin login).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -476,6 +476,569 @@
             },
             "description": "Same body, but a signature that wasn't made with the secret key. Must return 401, and nothing changes."
           }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Admin-only endpoints (T11). Run \"Admin login\" first: it saves the token to {{adminToken}}, which this folder's Bearer auth uses, so {{token}} (the customer) stays logged in alongside it.\n\nSet adminEmail and adminPassword in the environment's current value (the password is the Seed:AdminPassword user-secret; it is never committed).\n\nThe Catalogue subfolder runs top to bottom as a full pass (create, update, rename, soft delete) and checks the cache is cleared after each change. It leaves one inactive product and its category behind; delete them from the database afterwards if you don't want them.",
+      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+      "item": [
+        {
+          "name": "Admin login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "description": "Same login endpoint as customers. The JWT carries role=Admin; it is saved to {{adminToken}}, not {{token}}.",
+            "auth": { "type": "noauth" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Save the admin JWT separately, so the customer token in {{token}} isn't overwritten.",
+                  "const body = pm.response.json();",
+                  "if (pm.response.code === 200 && body.success && body.data && body.data.token) {",
+                  "    pm.environment.set(\"adminToken\", body.data.token);",
+                  "}",
+                  "pm.test(\"Logged in (200)\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "dashboard"]
+            },
+            "description": "Order counts for every status, revenue from Paid/Processing/Shipped/Delivered orders, active products with stock ≤ 5, and the 5 latest orders."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"Dashboard returned (200)\", () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Catalogue",
+          "description": "Products and categories, in run order. The \"Public ...\" requests call the customer endpoints (No Auth) between admin changes to show that the cache was cleared: each one would return the old value for up to 10/30 minutes if it wasn't.",
+          "item": [
+            {
+              "name": "Create category",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/categories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "categories"]
+                },
+                "description": "201. The slug is made from the name on the server. Same name (or one that makes the same slug) → 409. Clears the cached category list.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Garden Tools\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Save the new category's id for the product, rename and delete requests.",
+                      "const body = pm.response.json();",
+                      "if (pm.response.code === 201 && body.data && body.data.id) {",
+                      "    pm.environment.set(\"adminCategoryId\", body.data.id);",
+                      "}",
+                      "pm.test(\"Created (201)\", () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Public categories (new one listed)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/categories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "categories"]
+                },
+                "description": "The category list is cached for 30 minutes; creating a category cleared it, so the new one is here straight away.",
+                "auth": { "type": "noauth" }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Listed (200)\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"New category is listed\", () => {",
+                      "    const id = Number(pm.environment.get(\"adminCategoryId\"));",
+                      "    pm.expect(pm.response.json().data.map(c => c.id)).to.include(id);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create product",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/products",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "products"]
+                },
+                "description": "201 with a Location header. Unknown categoryId → 400, duplicate name → 409, price ≤ 0 → 400.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"categoryId\": {{adminCategoryId}},\n  \"name\": \"Garden Hose 20m\",\n  \"description\": \"Flexible 20-metre hose with spray nozzle.\",\n  \"price\": 14500,\n  \"stockQuantity\": 12,\n  \"imageUrl\": null,\n  \"isActive\": true\n}",
+                  "options": { "raw": { "language": "json" } }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Save the new product's id for the requests below.",
+                      "const body = pm.response.json();",
+                      "if (pm.response.code === 201 && body.data && body.data.id) {",
+                      "    pm.environment.set(\"adminProductId\", body.data.id);",
+                      "}",
+                      "pm.test(\"Created (201)\", () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Public product (fills the cache)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{adminProductId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{adminProductId}}"]
+                },
+                "description": "Puts the product into the 10-minute cache, so the next requests can show that admin changes clear it.",
+                "auth": { "type": "noauth" }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Found (200)\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Original price\", () => pm.expect(pm.response.json().data.price).to.eql(14500));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update product",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/products/{{adminProductId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "products", "{{adminProductId}}"]
+                },
+                "description": "Full replacement. Clears this product's cache entry. Sending isActive: true reactivates a soft-deleted product.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"categoryId\": {{adminCategoryId}},\n  \"name\": \"Garden Hose 20m\",\n  \"description\": \"Flexible 20-metre hose with spray nozzle and wall hook.\",\n  \"price\": 13900,\n  \"stockQuantity\": 15,\n  \"imageUrl\": null,\n  \"isActive\": true\n}",
+                  "options": { "raw": { "language": "json" } }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": ["pm.test(\"Updated (200)\", () => pm.response.to.have.status(200));"]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Public product (new price)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{adminProductId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{adminProductId}}"]
+                },
+                "description": "Shows the new price at once, because the update removed the cached copy.",
+                "auth": { "type": "noauth" }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"New price, not the cached one\", () => pm.expect(pm.response.json().data.price).to.eql(13900));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Rename category",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/categories/{{adminCategoryId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "categories", "{{adminCategoryId}}"]
+                },
+                "description": "200, slug becomes garden-and-outdoor. Clears the cached category list AND the cached copy of every product in this category, because each one shows the category name.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Garden & Outdoor\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": ["pm.test(\"Renamed (200)\", () => pm.response.to.have.status(200));"]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Public product (new category name)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{adminProductId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{adminProductId}}"]
+                },
+                "description": "The product was cached again by the previous public request; the rename removed it, so categoryName is the new one.",
+                "auth": { "type": "noauth" }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"New category name, not the cached one\", () => pm.expect(pm.response.json().data.categoryName).to.eql(\"Garden & Outdoor\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Public categories (renamed)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/categories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "categories"]
+                },
+                "description": "The list was cached by the earlier public request; the rename cleared it.",
+                "auth": { "type": "noauth" }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Renamed category is listed\", () => {",
+                      "    const names = pm.response.json().data.map(c => c.name);",
+                      "    pm.expect(names).to.include(\"Garden & Outdoor\");",
+                      "    pm.expect(names).to.not.include(\"Garden Tools\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get products (incl. inactive)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/products?page=1&pageSize=10&isActive=",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "products"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "pageSize", "value": "10" },
+                    { "key": "isActive", "value": "" }
+                  ]
+                },
+                "description": "Active and inactive products, newest first. Leave isActive empty for both, or set true/false. Also supports search and categoryId."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": ["pm.test(\"Listed (200)\", () => pm.response.to.have.status(200));"]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Soft delete product",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/products/{{adminProductId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "products", "{{adminProductId}}"]
+                },
+                "description": "204. Sets IsActive = false and clears its cache entry."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": ["pm.test(\"Deactivated (204)\", () => pm.response.to.have.status(204));"]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Public product (now 404)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{adminProductId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{adminProductId}}"]
+                },
+                "description": "Inactive products are hidden from customers, and the cached copy is gone.",
+                "auth": { "type": "noauth" }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": ["pm.test(\"Hidden from customers (404)\", () => pm.response.to.have.status(404));"]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get product by id (admin sees inactive)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/products/{{adminProductId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "products", "{{adminProductId}}"]
+                },
+                "description": "Admins still see it, with isActive: false."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Found (200)\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Inactive\", () => pm.expect(pm.response.json().data.isActive).to.eql(false));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete category (in use → 409)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/categories/{{adminCategoryId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "categories", "{{adminCategoryId}}"]
+                },
+                "description": "204 if no product uses it. 409 here: the soft-deleted product still points at it."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": ["pm.test(\"Still in use (409)\", () => pm.response.to.have.status(409));"]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Orders",
+          "item": [
+            {
+              "name": "Get all orders",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/orders?status=&page=1&pageSize=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "orders"],
+                  "query": [
+                    { "key": "status", "value": "" },
+                    { "key": "page", "value": "1" },
+                    { "key": "pageSize", "value": "10" }
+                  ]
+                },
+                "description": "Every customer's orders, newest first, with customer name and email. Filter by status (Pending, Paid, Processing, Shipped, Delivered, Cancelled) or leave it empty."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": ["pm.test(\"Listed (200)\", () => pm.response.to.have.status(200));"]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get order by id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/orders/{{orderId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "orders", "{{orderId}}"]
+                },
+                "description": "Any customer's order. Uses {{orderId}} from Orders > Place order."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": ["pm.test(\"Found (200)\", () => pm.response.to.have.status(200));"]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update order status",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/orders/{{orderId}}/status",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "orders", "{{orderId}}", "status"]
+                },
+                "description": "Allowed: Pending → Cancelled (returns stock), Paid → Processing → Shipped → Delivered. Anything else → 409 (Pending → Paid only happens through Paystack). Emails the customer after the commit.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"Processing\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/customers?page=1&pageSize=10&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "customers"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "10" },
+                { "key": "search", "value": "" }
+              ]
+            },
+            "description": "Customers only (no admins), newest first, with order counts. search matches name or email. No password hashes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"Listed (200)\", () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer token → 403",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "dashboard"]
+            },
+            "description": "Uses the customer's {{token}} instead of {{adminToken}}: authenticated but not in the Admin role, so 403 (not 401).",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"Customer is forbidden (403)\", () => pm.response.to.have.status(403));"]
+              }
+            }
+          ]
         }
       ]
     }

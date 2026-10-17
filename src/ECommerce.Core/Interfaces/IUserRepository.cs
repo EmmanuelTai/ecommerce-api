@@ -1,4 +1,6 @@
+using ECommerce.Core.DTOs.Admin;
 using ECommerce.Core.DTOs.Auth;
+using ECommerce.Core.DTOs.Common;
 using ECommerce.Core.Entities;
 
 namespace ECommerce.Core.Interfaces;
@@ -12,4 +14,7 @@ public interface IUserRepository : IGenericRepository<User>
 
     // Read-only, projected straight to the DTO.
     Task<UserDto?> GetDtoByIdAsync(int id, CancellationToken cancellationToken = default);
+
+    // Admin (T11). Read-only: one page of customers (admins are left out), newest first.
+    Task<PagedResult<CustomerDto>> GetCustomerDtosAsync(CustomerQuery query, CancellationToken cancellationToken = default);
 }

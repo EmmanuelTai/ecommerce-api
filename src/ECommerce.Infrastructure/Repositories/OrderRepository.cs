@@ -1,3 +1,4 @@
+using ECommerce.Core.DTOs.Admin;
 using ECommerce.Core.DTOs.Common;
 using ECommerce.Core.DTOs.Orders;
 using ECommerce.Core.Entities;
@@ -61,4 +62,55 @@ public class OrderRepository(AppDbContext db) : GenericRepository<Order>(db), IO
 
         return rows == 1;
     }
+
+    public async Task<PagedResult<AdminOrderSummaryDto>> GetAdminSummaryDtosAsync(AdminOrderQuery query, CancellationToken cancellationToken = default)
+    {
+        var orders = Db.Orders.AsNoTracking();
+
+        if (query.Status is not null)
+        {
+            orders = orders.Where(o => o.Status == query.Status);
+        }
+
+        var totalCount = await orders.CountAsync(cancellationToken);
+        var items = await orders
+            .OrderByDescending(o => o.CreatedAt).ThenByDescending(o => o.Id)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            // o.User.FullName makes EF join Users in the same SQL query; Select doesn't need Include.
+            .Select(o => new AdminOrderSummaryDto(
+                o.Id, o.OrderNumber, o.Status, o.TotalAmount, o.Items.Count(),
+                o.UserId, o.User.FullName, o.User.Email, o.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<AdminOrderSummaryDto>(items, new PaginationMeta(query.Page, query.PageSize, totalCount));
+    }
+
+    public Task<AdminOrderDto?> GetAdminDtoByIdAsync(int orderId, CancellationToken cancellationToken = default) =>
+        Db.Orders
+            .AsNoTracking()
+            .Where(o => o.Id == orderId)
+            .Select(o => new AdminOrderDto(
+                o.Id, o.OrderNumber, o.Status, o.TotalAmount,
+                o.UserId, o.User.FullName, o.User.Email,
+                o.ShippingFullName, o.ShippingPhone, o.ShippingStreet, o.ShippingCity, o.ShippingState,
+                o.CreatedAt, o.UpdatedAt,
+                o.Items
+                    .OrderBy(i => i.Id)
+                    .Select(i => new OrderItemDto(i.ProductId, i.ProductName, i.UnitPrice, i.Quantity, i.Subtotal))
+                    .ToList()))
+            .FirstOrDefaultAsync(cancellationToken);
+
+    // One GROUP BY query instead of a COUNT per status.
+    public async Task<IReadOnlyDictionary<OrderStatus, int>> GetCountsByStatusAsync(CancellationToken cancellationToken = default) =>
+        await Db.Orders
+            .GroupBy(o => o.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Status, x => x.Count, cancellationToken);
+
+    // SUM runs in SQL. With no matching rows SQL returns NULL; the decimal? cast lets that through as null (then 0).
+    public async Task<decimal> GetTotalAmountAsync(IReadOnlyCollection<OrderStatus> statuses, CancellationToken cancellationToken = default) =>
+        await Db.Orders
+            .Where(o => statuses.Contains(o.Status))
+            .SumAsync(o => (decimal?)o.TotalAmount, cancellationToken) ?? 0m;
 }

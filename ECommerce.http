@@ -215,3 +215,110 @@ x-paystack-signature: 0000dead
   "event": "charge.success",
   "data": { "reference": "{{reference}}" }
 }
+
+### --- Admin (T11) ---
+### Log in as the seeded admin. The password is the Seed:AdminPassword user-secret: paste it below, don't commit it.
+@adminPassword = paste-the-Seed:AdminPassword-secret-here
+
+# @name adminLogin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@ecommerce.local",
+  "password": "{{adminPassword}}"
+}
+
+###
+@adminToken = {{adminLogin.response.body.$.data.token}}
+
+### Dashboard: counts by status, revenue (Paid and later), low stock, 5 latest orders. Customer token -> 403
+GET {{baseUrl}}/api/admin/dashboard
+Authorization: Bearer {{adminToken}}
+
+### Products, active and inactive (isActive=true/false to filter)
+GET {{baseUrl}}/api/admin/products?page=1&pageSize=10
+Authorization: Bearer {{adminToken}}
+
+### Create a product (slug made from the name). Unknown category -> 400, same name -> 409
+# @name createProduct
+POST {{baseUrl}}/api/admin/products
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "categoryId": 1,
+  "name": "USB-C Cable 2m",
+  "description": "Braided fast-charging cable.",
+  "price": 4500,
+  "stockQuantity": 50,
+  "imageUrl": null,
+  "isActive": true
+}
+
+###
+@productId = {{createProduct.response.body.$.data.id}}
+
+### Update it (full replacement; clears its cache entry)
+PUT {{baseUrl}}/api/admin/products/{{productId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "categoryId": 1,
+  "name": "USB-C Cable 2m",
+  "description": "Braided fast-charging cable.",
+  "price": 3900,
+  "stockQuantity": 45,
+  "imageUrl": null,
+  "isActive": true
+}
+
+### Soft delete -> 204. GET /api/products/{id} is then 404; the admin GET still shows it
+DELETE {{baseUrl}}/api/admin/products/{{productId}}
+Authorization: Bearer {{adminToken}}
+
+###
+GET {{baseUrl}}/api/admin/products/{{productId}}
+Authorization: Bearer {{adminToken}}
+
+### Create a category -> 201. Same name (or same slug) -> 409
+# @name createCategory
+POST {{baseUrl}}/api/admin/categories
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "name": "Garden Tools" }
+
+###
+@categoryId = {{createCategory.response.body.$.data.id}}
+
+### Rename (clears the category list and every cached product in the category)
+PUT {{baseUrl}}/api/admin/categories/{{categoryId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "name": "Garden & Outdoor" }
+
+### Delete -> 204, or 409 if any product (even inactive) is in it
+DELETE {{baseUrl}}/api/admin/categories/{{categoryId}}
+Authorization: Bearer {{adminToken}}
+
+### All orders, optionally by status
+GET {{baseUrl}}/api/admin/orders?status=Pending&page=1&pageSize=10
+Authorization: Bearer {{adminToken}}
+
+### Any customer's order
+GET {{baseUrl}}/api/admin/orders/{{orderId}}
+Authorization: Bearer {{adminToken}}
+
+### Change status: Pending -> Cancelled (stock back), Paid -> Processing -> Shipped -> Delivered. Anything else -> 409
+PUT {{baseUrl}}/api/admin/orders/{{orderId}}/status
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "status": "Cancelled" }
+
+### Customers (read only, no password hashes)
+GET {{baseUrl}}/api/admin/customers?page=1&pageSize=10
+Authorization: Bearer {{adminToken}}

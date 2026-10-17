@@ -156,11 +156,11 @@ Any other change → 409 Conflict.
 - **Known limitation to mention:** unpaid `Pending` orders hold stock until cancelled; at scale, a background job would cancel them after 30 minutes.
 
 ### T11 · Admin endpoints (`[Authorize(Roles = "Admin")]`)
-- [ ] Products: `GET /api/admin/products` (including inactive), `POST`, `PUT /{id}`, `DELETE /{id}` (soft delete). Clears the product and category cache.
-- [ ] Categories: `POST`, `PUT /{id}`, `DELETE /{id}` (409 if it still has products).
-- [ ] Orders: `GET /api/admin/orders?status&page`, `GET /api/admin/orders/{id}`, `PUT /api/admin/orders/{id}/status` (enforces the status flow; cancelling returns stock; sends the status email).
-- [ ] Customers: `GET /api/admin/customers` (read only, never shows password hashes).
-- [ ] Dashboard: `GET /api/admin/dashboard` (order counts by status, total revenue from paid+ orders, low-stock products, 5 latest orders).
+- [x] Products: `GET /api/admin/products` (including inactive), `GET /{id}` (Location target for POST), `POST`, `PUT /{id}`, `DELETE /{id}` (soft delete). Clears the cached product; renaming a category also clears every cached product in it (their DTO carries the category name).
+- [x] Categories: `POST`, `PUT /{id}`, `DELETE /{id}` (409 if it still has products).
+- [x] Orders: `GET /api/admin/orders?status&page`, `GET /api/admin/orders/{id}`, `PUT /api/admin/orders/{id}/status` (enforces the status flow; cancelling returns stock; sends the status email).
+- [x] Customers: `GET /api/admin/customers` (read only, never shows password hashes).
+- [x] Dashboard: `GET /api/admin/dashboard` (order counts by status, total revenue from paid+ orders, low-stock products, 5 latest orders).
 - **Interview:** role-based vs policy-based authorization; a customer token here → 403.
 
 ### T12 · Ship it
