@@ -480,3 +480,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local leftovers that are not part of the project (e.g. SDK install scripts)
+install.cmd
+dotnet-install.*

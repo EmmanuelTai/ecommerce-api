@@ -1,4 +1,4 @@
-# Requests for trying the API. Filled in task by task; complete list in T12.
+# Requests for trying every endpoint, in order: register → login → browse → cart → checkout → pay → admin.
 @baseUrl = http://localhost:5152
 
 ### OpenAPI document

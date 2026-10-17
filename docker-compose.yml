@@ -14,7 +14,7 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "1025:1025"   # SMTP
+      - "2525:1025"   # SMTP on localhost:2525, the port appsettings.Development.json uses
       - "8025:8025"   # Inbox UI: http://localhost:8025
 
 volumes:

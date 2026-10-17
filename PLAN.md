@@ -144,7 +144,7 @@ Any other change → 409 Conflict.
 - [x] `IEmailService` → `SmtpEmailService` using **MailKit**; settings (host, port, user, password, from) from config.
 - [x] Emails: welcome (register), order placed, payment received, order status changed. *(Templates all in `EmailTemplates`; payment received is sent from T10, admin status changes from T11; customer cancel already sends the status email.)*
 - [x] Sent **after** the database commit, wrapped in try/catch: a failed email is logged and never breaks the order.
-- [x] Dev testing with **Mailpit** (Docker: SMTP on `localhost:1025`, inbox UI at `http://localhost:8025`) or **smtp4dev** (`dotnet tool install -g Rnwood.Smtp4dev`, no Docker needed).
+- [x] Dev testing with **Mailpit** (Docker: SMTP on `localhost:2525`, inbox UI at `http://localhost:8025`) or **smtp4dev** (`dotnet tool install -g Rnwood.Smtp4dev`, no Docker needed).
 - **Interview:** why email goes after the commit; what you'd change at scale (a queue / outbox).
 
 ### T10 · Paystack payments
@@ -164,7 +164,7 @@ Any other change → 409 Conflict.
 - **Interview:** role-based vs policy-based authorization; a customer token here → 403.
 
 ### T12 · Ship it
-- [ ] `ECommerce.http` with every request in order (register → login → browse → cart → checkout → pay → admin).
-- [ ] README: overview, architecture diagram, tech stack, how to run (secrets, DB, Mailpit, Paystack test keys), endpoint table, **design decisions**, screenshots (Scalar, Mailpit inbox, Paystack test checkout).
-- [ ] Final review: no secrets in history, clean build, consistent naming.
-- [ ] Write CV bullet points from what was built.
+- [x] `ECommerce.http` with every request in order (register → login → browse → cart → checkout → pay → admin).
+- [x] README: overview, architecture diagram, tech stack, how to run (secrets, DB, Mailpit, Paystack test keys), endpoint table, **design decisions**, screenshots (Scalar, Mailpit inbox, Paystack test checkout).
+- [x] Final review: no secrets in history, clean build, consistent naming.
+- [x] Write CV bullet points from what was built.

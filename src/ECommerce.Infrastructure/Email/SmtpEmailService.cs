@@ -38,9 +38,10 @@ public class SmtpEmailService(IOptions<SmtpSettings> options, ILogger<SmtpEmailS
             var socketOptions = settings.UseSsl ? SecureSocketOptions.Auto : SecureSocketOptions.None;
             await client.ConnectAsync(settings.Host, settings.Port, socketOptions, cancellationToken);
 
+            // A username with no password is a config mistake: the server rejects it, and the catch below logs it.
             if (!string.IsNullOrEmpty(settings.Username))
             {
-                await client.AuthenticateAsync(settings.Username, settings.Password, cancellationToken);
+                await client.AuthenticateAsync(settings.Username, settings.Password ?? string.Empty, cancellationToken);
             }
 
             await client.SendAsync(mime, cancellationToken);
